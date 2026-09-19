@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Sign in | Evently{% endblock %}
+{% block content %}
+<section class="auth-page"><div class="container"><div class="row justify-content-center"><div class="col-md-8 col-lg-5"><div class="auth-card shadow-sm"><p class="eyebrow">WELCOME BACK</p><h1>Sign in to Evently</h1><p class="text-muted mb-4">Pick up where your plans left off.</p><form method="post" novalidate><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="mb-3"><label class="form-label" for="email">Email address</label><input class="form-control" id="email" name="email" type="email" value="{{ request.form.get('email', '') }}" autocomplete="email" required></div><div class="mb-4"><label class="form-label" for="password">Password</label><input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required></div><button class="btn btn-brand w-100 py-2" type="submit">Sign in</button></form><p class="text-center text-muted mt-4 mb-0">New here? <a href="{{ url_for('auth.register') }}">Create an account</a></p></div></div></div></div></section>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Admin dashboard | Evently{% endblock %}
+{% block content %}
+<section class="dashboard-page admin-dashboard"><div class="container">
+  <div class="dashboard-intro d-flex flex-wrap justify-content-between align-items-end gap-3"><div><p class="eyebrow">ADMIN OVERVIEW</p><h1>Evently at a glance.</h1><p class="text-muted mb-0">Live event, booking, and audience activity from your database.</p></div><div class="d-flex gap-2"><a class="btn btn-outline-brand" href="{{ url_for('admin.booking_report') }}">View reports</a><a class="btn btn-brand" href="{{ url_for('admin.manage_events') }}">Manage events</a></div></div>
+  <div class="row g-3 mb-5">
+    <div class="col-6 col-lg-4 col-xxl-2"><div class="metric-card"><span>Total users</span><strong>{{ summary.total_users }}</strong></div></div>
+    <div class="col-6 col-lg-4 col-xxl-2"><div class="metric-card accent"><span>Total events</span><strong>{{ summary.total_events }}</strong></div></div>
+    <div class="col-6 col-lg-4 col-xxl-2"><div class="metric-card"><span>Total bookings</span><strong>{{ summary.total_bookings }}</strong></div></div>
+    <div class="col-6 col-lg-4 col-xxl-2"><div class="metric-card accent"><span>Tickets sold</span><strong>{{ summary.total_tickets }}</strong></div></div>
+    <div class="col-6 col-lg-4 col-xxl-2"><div class="metric-card"><span>Total revenue</span><strong>&#8377;{{ '%.2f'|format(summary.total_revenue) }}</strong></div></div>
+    <div class="col-6 col-lg-4 col-xxl-2"><div class="metric-card accent"><span>Active users</span><strong>{{ summary.active_users }}</strong></div></div>
+  </div>
+
+  <div class="section-title-row"><div><p class="eyebrow">EVENT INSIGHTS</p><h2>Performance charts</h2></div></div>
+  {% if chart_data.labels %}<div class="row g-4 mb-5">
+    <div class="col-lg-6"><div class="dashboard-panel chart-panel"><h3>Bookings by event</h3><canvas id="bookingsChart"></canvas></div></div>
+    <div class="col-lg-6"><div class="dashboard-panel chart-panel"><h3>Tickets sold by event</h3><canvas id="ticketsChart"></canvas></div></div>
+    <div class="col-lg-12"><div class="dashboard-panel chart-panel wide-chart"><h3>Revenue by event</h3><canvas id="revenueChart"></canvas></div></div>
+  </div>{% else %}<div class="empty-state mb-5"><h3>No chart data yet</h3><p class="text-muted mb-0">Create events and confirm bookings to see performance trends here.</p></div>{% endif %}
+
+  <div class="section-title-row"><div><p class="eyebrow">NEXT ON THE CALENDAR</p><h2>Upcoming events</h2></div><a class="btn btn-outline-brand btn-sm" href="{{ url_for('admin.manage_events') }}">All events</a></div>
+  {% if upcoming_events %}<div class="table-responsive admin-table-wrap mb-5"><table class="table align-middle mb-0"><thead><tr><th>Event</th><th>Date</th><th>Venue</th><th>Availability</th><th>Tickets sold</th></tr></thead><tbody>{% for event in upcoming_events %}<tr><td><strong>{{ event.title }}</strong></td><td>{{ event.event_date.strftime('%d %b %Y') }}</td><td>{{ event.venue }}, {{ event.city }}</td><td>{{ event.available_seats }} / {{ event.total_seats }}</td><td>{{ event.tickets_sold }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state mb-5"><h3>No upcoming events</h3><p class="text-muted">Create an event to begin building your calendar.</p><a class="btn btn-brand" href="{{ url_for('admin.create_event') }}">Create event</a></div>{% endif %}
+
+  <div class="row g-4 mb-5"><div class="col-xl-7"><div class="dashboard-panel h-100"><p class="eyebrow">LATEST SALES</p><h2>Recent bookings</h2>{% if recent_bookings %}<div class="table-responsive mt-3"><table class="table table-borderless align-middle mb-0"><thead><tr><th>Booking</th><th>User</th><th>Event</th><th>Tickets</th><th>Total</th><th>Status</th></tr></thead><tbody>{% for booking in recent_bookings %}<tr><td><strong>{{ booking.booking_code }}</strong><small>{{ booking.booked_at.strftime('%d %b %Y') }}</small></td><td>{{ booking.user_name }}</td><td>{{ booking.event_title }}</td><td>{{ booking.ticket_quantity }}</td><td>&#8377;{{ '%.2f'|format(booking.total_amount) }}</td><td><span class="status-badge {% if booking.status == 'cancelled' %}muted{% endif %}">{{ booking.status|title }}</span></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="text-muted mb-0">No bookings have been made yet.</p>{% endif %}</div></div><div class="col-xl-5"><div class="dashboard-panel h-100"><p class="eyebrow">NEWEST MEMBERS</p><h2>Recent registrations</h2>{% if recent_users %}<div class="activity-list mt-3">{% for user in recent_users %}<div><strong>{{ user.name }}</strong><span>{{ user.email }} · Joined {{ user.created_at.strftime('%d %b %Y') }}</span></div>{% endfor %}</div>{% else %}<p class="text-muted mb-0">No registered users yet.</p>{% endif %}</div></div></div>
+
+  <div class="section-title-row"><div><p class="eyebrow">EVENT PERFORMANCE</p><h2>Event statistics</h2></div></div>
+  {% if event_statistics %}<div class="table-responsive admin-table-wrap mb-5"><table class="table align-middle mb-0"><thead><tr><th>Event</th><th>Total seats</th><th>Available</th><th>Tickets sold</th><th>Bookings</th><th>Revenue</th></tr></thead><tbody>{% for event in event_statistics %}<tr><td><strong>{{ event.title }}</strong></td><td>{{ event.total_seats }}</td><td>{{ event.available_seats }}</td><td>{{ event.tickets_sold }}</td><td>{{ event.booking_count }}</td><td>&#8377;{{ '%.2f'|format(event.revenue) }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state mb-5"><h3>No event statistics yet</h3><p class="text-muted mb-0">Statistics will appear once you create events.</p></div>{% endif %}
+
+  <div class="dashboard-panel mb-4"><p class="eyebrow">AUDIENCE ACTIVITY</p><h2>Bookings per user</h2>{% if user_activity %}<div class="table-responsive mt-3"><table class="table table-borderless align-middle mb-0"><thead><tr><th>User</th><th>Email</th><th class="text-end">Bookings</th></tr></thead><tbody>{% for user in user_activity %}<tr><td><strong>{{ user.name }}</strong></td><td>{{ user.email }}</td><td class="text-end">{{ user.booking_count }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="text-muted mb-0">No user activity yet.</p>{% endif %}</div>
+</div></section>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+  const chartData = {{ chart_data|tojson }};
+  if (window.Chart && chartData.labels && chartData.labels.length) {
+    const baseOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } };
+    const createChart = (id, label, values, color, currency = false) => {
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+      new Chart(canvas, { type: 'bar', data: { labels: chartData.labels, datasets: [{ label, data: values, backgroundColor: color, borderRadius: 7, maxBarThickness: 52 }] }, options: { ...baseOptions, plugins: { ...baseOptions.plugins, tooltip: { callbacks: { label: (context) => currency ? `${label}: ₹${Number(context.raw).toFixed(2)}` : `${label}: ${context.raw}` } } } } });
+    };
+    createChart('bookingsChart', 'Bookings', chartData.bookings, '#ff5b36');
+    createChart('ticketsChart', 'Tickets sold', chartData.tickets, '#35306f');
+    createChart('revenueChart', 'Revenue', chartData.revenue, '#ffbd42', true);
+  }
+</script>
+{% endblock %}

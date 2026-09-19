@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Page not found | Evently{% endblock %}
+{% block content %}
+<section class="error-page text-center"><div class="container"><p class="eyebrow">ERROR 404</p><h1>This event page has moved on.</h1><p class="text-muted mb-4">The page you are looking for does not exist or is no longer available.</p><a class="btn btn-brand" href="{{ url_for('home') }}">Return home</a></div></section>
+{% endblock %}

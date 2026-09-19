@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Something went wrong | Evently{% endblock %}
+{% block content %}
+<section class="error-page text-center"><div class="container"><p class="eyebrow">ERROR 500</p><h1>We hit an unexpected pause.</h1><p class="text-muted mb-4">Please try again in a moment.</p><a class="btn btn-brand" href="{{ url_for('home') }}">Return home</a></div></section>
+{% endblock %}
