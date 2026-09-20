@@ -112,7 +112,35 @@ def remove_event_image(filename):
     """Delete a stored event banner only when it is inside the upload folder."""
     if not filename:
         return
+    if Path(filename).suffix.lower().lstrip(".") not in current_app.config["ALLOWED_IMAGE_EXTENSIONS"]:
+        return
     upload_folder = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
     file_path = (upload_folder / filename).resolve()
     if file_path.parent == upload_folder and file_path.is_file():
-        file_path.unlink()
+        try:
+            file_path.unlink()
+        except OSError:
+            current_app.logger.warning("An unused event banner could not be deleted.")
+
+
+def remove_unreferenced_event_image(filename):
+    """Keep shared banners; leave the file intact if references cannot be checked."""
+    if not filename:
+        return
+    from database.db import get_db_connection
+    from mysql.connector import Error
+
+    connection = cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT id FROM events WHERE image_filename = %s LIMIT 1", (filename,))
+        if cursor.fetchone() is None:
+            remove_event_image(filename)
+    except Error:
+        current_app.logger.warning("Unused banner cleanup deferred: references could not be checked.")
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()

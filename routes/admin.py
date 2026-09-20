@@ -8,7 +8,7 @@ from mysql.connector import Error
 
 from database.db import get_db_connection
 from utils.decorators import admin_required
-from utils.event_helpers import remove_event_image, save_event_image, validate_event_form
+from utils.event_helpers import remove_event_image, remove_unreferenced_event_image, save_event_image, validate_event_form
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -387,10 +387,52 @@ def edit_event(event_id):
             if connection and connection.is_connected():
                 connection.close()
         if new_image:
-            remove_event_image(current_event["image_filename"])
+            remove_unreferenced_event_image(current_event["image_filename"])
         flash("Event updated successfully.", "success")
         return redirect(url_for("admin.manage_events"))
     return render_template("admin/event-form.html", event=event, form_title="Edit event")
+
+
+@admin_bp.route("/events/<int:event_id>/banner/remove", methods=["GET", "POST"])
+@admin_required
+def remove_banner(event_id):
+    event = get_event_or_404(event_id)
+    if request.method == "GET":
+        return render_template("admin/remove-banner.html", event=event)
+    if request.form.get("confirm_remove") != "1":
+        flash("Please confirm banner removal.", "warning")
+        return render_template("admin/remove-banner.html", event=event), 400
+    connection = cursor = None
+    old_image = None
+    try:
+        connection = get_db_connection()
+        connection.start_transaction()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT image_filename FROM events WHERE id = %s FOR UPDATE", (event_id,))
+        current = cursor.fetchone()
+        if current is None:
+            connection.rollback()
+            abort(404)
+        old_image = current["image_filename"]
+        if (old_image or "") != request.form.get("image_filename", ""):
+            connection.rollback()
+            flash("The banner has changed. Review the current banner before removing it.", "warning")
+            return redirect(url_for("admin.remove_banner", event_id=event_id))
+        cursor.execute("UPDATE events SET image_filename = NULL WHERE id = %s", (event_id,))
+        connection.commit()
+    except Error:
+        if connection:
+            connection.rollback()
+        flash("The banner could not be removed. Please try again.", "danger")
+        return render_template("admin/remove-banner.html", event=event), 503
+    finally:
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+    remove_unreferenced_event_image(old_image)
+    flash("Banner removed. The default Evently image will be shown.", "success")
+    return redirect(url_for("admin.edit_event", event_id=event_id))
 
 
 @admin_bp.post("/events/<int:event_id>/delete")
@@ -416,6 +458,6 @@ def delete_event(event_id):
             cursor.close()
         if connection and connection.is_connected():
             connection.close()
-    remove_event_image(event["image_filename"])
+    remove_unreferenced_event_image(event["image_filename"])
     flash("Event deleted successfully.", "success")
     return redirect(url_for("admin.manage_events"))

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Remove banner | Evently{% endblock %}
+{% block content %}
+<section class="admin-page"><div class="container form-container"><div class="form-panel">
+  <p class="eyebrow">EVENT BANNER</p><h1>Remove banner?</h1>
+  <p>Remove the banner for <strong>{{ event.title }}</strong>? The default Evently image will replace it. Your event and bookings will remain unchanged.</p>
+  {% if event.image_filename %}
+  <img class="form-image-preview mb-3" src="{{ url_for('static', filename='uploads/' ~ event.image_filename) }}" alt="Current event banner">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="image_filename" value="{{ event.image_filename }}">
+    <div class="d-flex flex-wrap gap-3"><button class="btn btn-outline-danger" type="submit" name="confirm_remove" value="1">Confirm Remove Banner</button><a class="btn btn-outline-dark" href="{{ url_for('admin.edit_event', event_id=event.id) }}">Cancel</a></div>
+  </form>
+  {% else %}<p>This event already uses the default banner.</p><a class="btn btn-outline-brand" href="{{ url_for('admin.edit_event', event_id=event.id) }}">Back to event</a>{% endif %}
+</div></div></section>
+{% endblock %}
