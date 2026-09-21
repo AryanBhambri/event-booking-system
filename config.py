@@ -27,6 +27,9 @@ class Config:
     TRUSTED_HOSTS = [host.strip() for host in os.getenv("TRUSTED_HOSTS", "").split(",") if host.strip()] or None
 
     UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"
+    CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
     MAX_IMAGE_SIZE = 5 * 1024 * 1024
     MAX_CONTENT_LENGTH = 6 * 1024 * 1024  # Include multipart form overhead.
     ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}

@@ -4,7 +4,6 @@ Run with: py -m tests.test_events
 Temporary database rows and uploaded files are removed after the test.
 """
 from datetime import date, timedelta
-from pathlib import Path
 from uuid import uuid4
 
 from werkzeug.security import generate_password_hash
@@ -13,6 +12,7 @@ from app import create_app
 from tests.helpers import CSRFClient, image_bytes
 from database.db import get_db_connection
 from utils.event_helpers import remove_event_image
+from tests.cloudinary_support import MockCloudinary
 
 
 TOKEN = uuid4().hex[:12]
@@ -45,6 +45,11 @@ def event_data(total_seats="30", venue="City Hall"):
 
 def main():
     app = create_app()
+    with MockCloudinary(app) as storage:
+        run_checks(app, storage)
+
+
+def run_checks(app, storage):
     app.config.update(TESTING=True)
     app.test_client_class = CSRFClient
     clean_up(app)
@@ -83,7 +88,7 @@ def main():
             cursor.close()
             connection.close()
         assert event["available_seats"] == 30 and event["total_seats"] == 30
-        assert event["image_filename"] and (Path(app.config["UPLOAD_FOLDER"]) / event["image_filename"]).is_file()
+        assert event["image_filename"] in {asset["secure_url"] for asset in storage.assets.values()}
 
         assert client.get("/admin/events").status_code == 200
         assert client.get("/events/").status_code == 200

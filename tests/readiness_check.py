@@ -34,7 +34,12 @@ def main():
                 (SELECT COALESCE(SUM(ticket_quantity), 0) FROM bookings WHERE event_id = events.id AND status = 'confirmed')""")
             assert cursor.fetchone()["count"] == 0, "Existing seat counts disagree with confirmed bookings"
             cursor.execute("SELECT image_filename FROM events WHERE image_filename IS NOT NULL")
-            assert all((Path(app.config["UPLOAD_FOLDER"]) / row["image_filename"]).is_file() for row in cursor.fetchall())
+            for row in cursor.fetchall():
+                image = row["image_filename"]
+                if image.startswith("https://"):
+                    assert len(image) <= 255, "Banner URL exceeds the database limit"
+                elif image:
+                    assert (Path(app.config["UPLOAD_FOLDER"]) / image).is_file()
             cursor.execute("SELECT COUNT(*) AS count FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('users','events','bookings') AND ENGINE = 'InnoDB'")
             assert cursor.fetchone()["count"] == 3
             cursor.execute("SELECT COUNT(*) AS count FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_TYPE = 'FOREIGN KEY'")

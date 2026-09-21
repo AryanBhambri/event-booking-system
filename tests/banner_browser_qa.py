@@ -10,6 +10,7 @@ from playwright.sync_api import sync_playwright
 from werkzeug.serving import make_server
 
 from tests.qa_support import QAData
+from tests.cloudinary_support import mock_browser_images
 
 
 class BannerBrowserTests(unittest.TestCase):
@@ -31,6 +32,7 @@ class BannerBrowserTests(unittest.TestCase):
 
     def test_preview_replace_confirm_remove(self):
         context = self.browser.new_context()
+        mock_browser_images(context)
         self.addCleanup(context.close)
         page = context.new_page()
         errors = []

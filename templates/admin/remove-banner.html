@@ -5,7 +5,7 @@
   <p class="eyebrow">EVENT BANNER</p><h1>Remove banner?</h1>
   <p>Remove the banner for <strong>{{ event.title }}</strong>? The default Evently image will replace it. Your event and bookings will remain unchanged.</p>
   {% if event.image_filename %}
-  <img class="form-image-preview mb-3" src="{{ url_for('static', filename='uploads/' ~ event.image_filename) }}" alt="Current event banner">
+  <img class="form-image-preview mb-3" src="{{ event_image_url(event.image_filename) }}" alt="Current event banner">
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="image_filename" value="{{ event.image_filename }}">

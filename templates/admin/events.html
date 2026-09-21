@@ -11,7 +11,7 @@
       <div class="table-responsive admin-table-wrap"><table class="table align-middle mb-0">
         <thead><tr><th>Event</th><th>Date & venue</th><th>Price</th><th>Seats</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
         <tbody>{% for event in events %}<tr>
-          <td><div class="admin-event-name">{% if event.image_filename %}<img src="{{ url_for('static', filename='uploads/' ~ event.image_filename) }}" alt="">{% else %}<img src="{{ url_for('static', filename='images/default-event.svg') }}" alt="">{% endif %}<div><strong>{{ event.title }}</strong><small>{{ event.category }}</small></div></div></td>
+          <td><div class="admin-event-name">{% if event.image_filename %}<img src="{{ event_image_url(event.image_filename) }}" alt="">{% else %}<img src="{{ event_image_url(None) }}" alt="">{% endif %}<div><strong>{{ event.title }}</strong><small>{{ event.category }}</small></div></div></td>
           <td>{{ event.event_date.strftime('%d %b %Y') }} · {{ event.event_time_display }}<small>{{ event.venue }}, {{ event.city }}</small></td>
           <td>₹{{ '%.2f'|format(event.ticket_price) }}</td><td>{{ event.available_seats }} / {{ event.total_seats }}</td>
           <td><span class="status-badge {% if event.event_status == 'Past' %}muted{% endif %}">{{ event.event_status }}</span></td>

@@ -10,6 +10,7 @@ from werkzeug.serving import make_server, WSGIRequestHandler
 
 from tests.helpers import image_bytes
 from tests.qa_support import QAData
+from tests.cloudinary_support import mock_browser_images
 
 
 class QuietHandler(WSGIRequestHandler):
@@ -47,6 +48,7 @@ class BrowserQATests(unittest.TestCase):
 
     def test_browser_user_and_admin_workflows(self):
         context = self.browser.new_context(viewport={"width": 1440, "height": 1000})
+        mock_browser_images(context)
         self.addCleanup(context.close)
         page = context.new_page()
         errors = []
@@ -135,6 +137,7 @@ class BrowserQATests(unittest.TestCase):
         for width, height in ((1440, 1000), (768, 1024), (390, 844)):
             for role in ("anonymous", "user", "admin"):
                 context = self.browser.new_context(viewport={"width": width, "height": height})
+                mock_browser_images(context)
                 try:
                     page = context.new_page()
                     errors = []

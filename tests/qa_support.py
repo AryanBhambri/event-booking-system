@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash
 from app import create_app
 from database.db import get_db_connection
 from tests.helpers import CSRFClient, image_bytes
+from tests.cloudinary_support import MockCloudinary
 
 
 class QAData:
@@ -39,6 +40,8 @@ class QAData:
                 connection.close()
 
     def setup(self):
+        self.cloudinary = MockCloudinary(self.app)
+        self.cloudinary.__enter__()
         for role, email in self.emails.items():
             self.ids[role] = self.query(
                 "INSERT INTO users (name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
@@ -63,6 +66,13 @@ class QAData:
         return event
 
     def cleanup(self):
+        try:
+            self._cleanup_records()
+        finally:
+            if hasattr(self, "cloudinary"):
+                self.cloudinary.__exit__(None, None, None)
+
+    def _cleanup_records(self):
         if "admin" in self.ids:
             images = self.query("SELECT image_filename FROM events WHERE created_by = %s", (self.ids["admin"],))
             self.query("DELETE bookings FROM bookings JOIN events ON bookings.event_id = events.id WHERE events.created_by = %s", (self.ids["admin"],), write=True)

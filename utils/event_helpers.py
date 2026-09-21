@@ -1,11 +1,12 @@
 """Validation and safe image-file helpers for event management."""
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
 from uuid import uuid4
+import re
 import warnings
 
-from flask import current_app
+import cloudinary.uploader
+from flask import current_app, url_for
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
@@ -66,7 +67,7 @@ def validate_event_form(form):
 
 
 def save_event_image(file_storage):
-    """Validate and save an optional banner, returning its generated filename."""
+    """Validate an optional banner, returning its unchanged Cloudinary HTTPS URL."""
     if not file_storage or not file_storage.filename:
         return None, None
     original_name = secure_filename(file_storage.filename)
@@ -97,30 +98,89 @@ def save_event_image(file_storage):
     finally:
         file_storage.stream.seek(0)
 
-    filename = f"{uuid4().hex}.{extension}"
-    upload_folder = Path(current_app.config["UPLOAD_FOLDER"])
+    options = _cloudinary_options()
+    if not all(options[key] for key in ("cloud_name", "api_key", "api_secret")):
+        return None, "Banner uploads are not configured. Please contact the site administrator."
+    public_id = f"evently/event-banners/{uuid4().hex}"
     try:
-        upload_folder.mkdir(parents=True, exist_ok=True)
-        file_storage.save(upload_folder / filename)
-    except OSError:
-        current_app.logger.error("Could not save an event image.")
-        return None, "The image could not be saved. Please try again."
-    return filename, None
+        result = cloudinary.uploader.upload(
+            file_storage.stream,
+            public_id=public_id,
+            asset_folder="evently/event-banners",
+            overwrite=False,
+            unique_filename=False,
+            use_filename=False,
+            **options,
+        )
+    except Exception:
+        # SDK/network failures must not reach the event's database transaction.
+        # Do not log exception text: it may contain credentials or request details.
+        current_app.logger.error("Could not upload an event banner to Cloudinary.")
+        return None, "The banner could not be uploaded. Please try again."
+
+    # Never remove a pre-existing asset, even in the unlikely event of an ID collision.
+    if not isinstance(result, dict) or result.get("existing") or result.get("public_id") != public_id:
+        return None, "The banner upload could not be verified. Please try again."
+    image_url = result.get("secure_url")
+    if isinstance(image_url, str) and len(image_url) > 255:
+        _destroy_cloudinary_image(public_id)
+        return None, "The banner URL exceeds the 255-character storage limit. The event was not saved. Please contact the site administrator."
+    if owned_event_image_id(image_url) != public_id:
+        _destroy_cloudinary_image(public_id)
+        return None, "The banner upload did not return a valid secure image URL. Please try again."
+    return image_url, None
+
+
+def _cloudinary_options():
+    """Pass app-specific credentials explicitly; do not mutate SDK global config."""
+    return {
+        "cloud_name": current_app.config["CLOUDINARY_CLOUD_NAME"],
+        "api_key": current_app.config["CLOUDINARY_API_KEY"],
+        "api_secret": current_app.config["CLOUDINARY_API_SECRET"],
+        "secure": True,
+        "resource_type": "image",
+        "type": "upload",
+        "timeout": 30,
+    }
+
+
+def owned_event_image_id(image_url):
+    """Recognize only canonical URLs for UUID banners in this app's account."""
+    cloud_name = current_app.config["CLOUDINARY_CLOUD_NAME"]
+    if not cloud_name or not isinstance(image_url, str):
+        return None
+    match = re.fullmatch(
+        r"https://res\.cloudinary\.com/" + re.escape(cloud_name)
+        + r"/image/upload/v[0-9]+/(evently/event-banners/[0-9a-f]{32})\.(?:png|jpg|jpeg|gif|webp)",
+        image_url,
+    )
+    return match.group(1) if match else None
+
+
+def event_image_url(image_filename):
+    """Resolve external HTTPS banners, legacy filenames, and the existing default."""
+    if not image_filename:
+        return url_for("static", filename="images/default-event.svg")
+    if image_filename.startswith("https://"):
+        return image_filename
+    return url_for("static", filename="uploads/" + image_filename)
+
+
+def _destroy_cloudinary_image(public_id):
+    """Best-effort cleanup; a storage outage must not undo a committed DB change."""
+    try:
+        result = cloudinary.uploader.destroy(public_id, invalidate=True, **_cloudinary_options())
+        if result.get("result") not in {"ok", "not found"}:
+            current_app.logger.warning("An unused Cloudinary event banner could not be deleted: %s", public_id)
+    except Exception:
+        current_app.logger.warning("An unused Cloudinary event banner could not be deleted: %s", public_id)
 
 
 def remove_event_image(filename):
-    """Delete a stored event banner only when it is inside the upload folder."""
-    if not filename:
-        return
-    if Path(filename).suffix.lower().lstrip(".") not in current_app.config["ALLOWED_IMAGE_EXTENSIONS"]:
-        return
-    upload_folder = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
-    file_path = (upload_folder / filename).resolve()
-    if file_path.parent == upload_folder and file_path.is_file():
-        try:
-            file_path.unlink()
-        except OSError:
-            current_app.logger.warning("An unused event banner could not be deleted.")
+    """Delete only owned Cloudinary banners; retain all legacy local files."""
+    public_id = owned_event_image_id(filename)
+    if public_id:
+        _destroy_cloudinary_image(public_id)
 
 
 def remove_unreferenced_event_image(filename):

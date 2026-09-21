@@ -10,6 +10,7 @@ from routes.events import events_bp
 from routes.bookings import bookings_bp
 from routes.dashboard import dashboard_bp
 from routes.admin import admin_bp
+from utils.event_helpers import event_image_url
 
 
 def create_app(config_class=Config):
@@ -21,6 +22,7 @@ def create_app(config_class=Config):
     }:
         raise RuntimeError("Set SECRET_KEY to a unique random value of at least 32 characters.")
     CSRFProtect(app)
+    app.jinja_env.globals["event_image_url"] = event_image_url
 
     # Blueprints keep each feature area in a small, easy-to-find module.
     app.register_blueprint(auth_bp)

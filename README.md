@@ -152,14 +152,22 @@ Booking confirmations at `/bookings/<booking_code>` support browser printing and
 
 ## Uploads and static assets
 
-Banners accept PNG, JPEG, GIF, or WEBP up to 5 MB. Pillow validates the actual image contents and extension; filenames are generated, and invalid/decompression-bomb images are rejected. Requests allow 6 MB including multipart overhead. Uploaded images are public assets in `static/uploads/`; never upload confidential documents. The folder must be writable and persistent, with backups. For multiple application instances, mount shared storage at that path or adapt image serving before scaling. Missing banners use the bundled default SVG when no image is assigned.
+Banners accept PNG, JPEG, GIF, or WEBP up to 5 MB. Pillow validates the actual image contents and extension, and invalid/decompression-bomb images are rejected. Requests allow 6 MB including multipart overhead. New banners are uploaded from the existing admin event form to Cloudinary under `evently/event-banners/<uuid>`. Banners are public assets; never upload confidential documents.
+
+Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in Render's environment settings before deploying this integration. Use the values from your Cloudinary account; never commit credentials or `.env`. After this one-time setup/deployment, admins can upload and replace banners directly on the live website without VS Code, GitHub changes, or redeployment. Missing credentials cause a clear upload error; new uploads never fall back to ephemeral local storage.
+
+The returned HTTPS URL is stored unchanged in the existing `events.image_filename VARCHAR(255)` column. URLs longer than 255 characters are rejected before any event write, and cleanup of the new asset is attempted. Replacement commits the database change before cleaning up an unreferenced old Cloudinary asset. Remove Banner clears the field and shows the default SVG. Only canonical HTTPS URLs belonging to the configured Cloudinary account and Evently UUID banner path qualify for deletion; arbitrary external URLs and legacy local files are never deleted by this integration. If Cloudinary deletion fails, the database change remains valid and a warning identifies the unused public ID for later cleanup.
+
+Existing local filenames still resolve through `static/uploads/`; empty values use `static/images/default-event.svg`. Existing local files are neither migrated nor deleted automatically. Keep their files available and backed up: compatibility alone does not make old files on Render's ephemeral filesystem persistent. Migrate or re-upload those banners separately when ready. Cloudinary credentials/account changes also require planning for previously uploaded assets.
+
+Cloudinary calls in automated banner, integration, and browser tests are mocked; tests never upload to or delete from a real Cloudinary account. Run `python -m unittest tests.test_cloudinary_banners tests.test_banners -v` for focused storage and banner workflow checks.
 
 ## Deployment preparation — not deployed
 
 1. Install `requirements.txt` into an isolated runtime environment.
 2. Set a unique deployment `SECRET_KEY`, `FLASK_DEBUG=false`, `SESSION_COOKIE_SECURE=true`, and `TRUSTED_HOSTS` to the public domains. Use the platform's secret store; never publish `.env`.
 3. Configure the existing/target MySQL database and a least-privilege runtime user. Set `MYSQL_SSL_CA` for verified remote TLS. Verify connectivity with `check-db`; do not rerun schema setup over existing data.
-4. Mount persistent writable storage for `static/uploads/` and back up both the database and images.
+4. Set the three Cloudinary environment variables described above for new banners. Preserve/back up `static/uploads/` while legacy banners still depend on it, and continue backing up the database.
 5. Serve through Waitress behind an HTTPS reverse proxy. For example, on Windows:
 
    ```powershell

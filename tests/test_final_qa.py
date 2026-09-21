@@ -15,6 +15,7 @@ from config import Config
 from routes.auth import safe_next_url
 from tests.helpers import image_bytes
 from tests.qa_support import QAData
+from tests.cloudinary_support import MockCloudinary
 from utils.event_helpers import validate_event_form, save_event_image
 from werkzeug.datastructures import FileStorage
 
@@ -39,6 +40,7 @@ class SecurityRegressionTests(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
         self.app.config.update(TESTING=True)
+        self.enterContext(MockCloudinary(self.app))
 
     def test_csrf_rejects_missing_and_invalid_tokens(self):
         client = self.app.test_client()
@@ -140,6 +142,10 @@ class WorkflowRegressionTests(unittest.TestCase):
                                 self.assertLess(linked.status_code, 400, link)
                             checked_links.add(link)
                     for image in markup.images:
+                        if image.startswith("https://"):
+                            if image == event["image_filename"]:
+                                self.assertIn(image, {asset["secure_url"] for asset in self.data.cloudinary.assets.values()})
+                            continue
                         if image not in checked_images:
                             with client.get(image) as loaded:
                                 self.assertEqual(loaded.status_code, 200, image)
